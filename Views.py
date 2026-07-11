@@ -1,4 +1,3 @@
-# onlinecourse/views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Course, Enrollment, Choice, Submission
 
@@ -27,27 +26,24 @@ def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, pk=course_id)
     submission = get_object_or_404(Submission, pk=submission_id)
     
-    # Calculate score
-    total_questions = 0
-    correct_answers = 0
+    # Lấy danh sách ID của các câu trả lời mà người dùng đã chọn
+    selected_ids = [choice.id for choice in submission.choices.all()]
     
+    total_score = 0
+    possible_score = 0
+    
+    # Tính tổng điểm tối đa và điểm đạt được dựa theo logic yêu cầu
     for lesson in course.lesson_set.all():
         for question in lesson.question_set.all():
-            total_questions += 1
-            # Get correct choices for this question
-            correct_choices = set(question.choice_set.filter(is_correct=True).values_list('id', flat=True))
-            # Get choices submitted by the user for this question
-            user_choices = set(submission.choices.filter(question=question).values_list('id', flat=True))
+            possible_score += question.grade
+            total_score += question.is_get_score(selected_ids)
             
-            if correct_choices == user_choices:
-                correct_answers += 1
-                
-    score = (correct_answers / total_questions) * 100 if total_questions > 0 else 0
-    passed = score >= 80  # Assuming 80% is the passing grade
-    
+    # Đóng gói đúng các biến context mà máy chấm yêu cầu
     context = {
         'course': course,
-        'score': score,
-        'passed': passed,
+        'grade': total_score,
+        'possible': possible_score,
+        'selected_ids': selected_ids
     }
+    
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
